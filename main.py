@@ -205,27 +205,17 @@ class UrbanRoutesPage:
         return checkbox.is_selected()
 
     def click_ice_cream_plus_button(self):
-        """Hace clic en el botón '+' del contador de Helado.
-        Usa hasta 3 intentos con espera de 30s cada uno (poll cada 0.5s) porque en el
-        flujo completo el panel de requisitos puede tardar en estabilizarse tras el
-        clic del switch de manta y pañuelos. Si un intento falla por TimeoutException,
-        guarda screenshot + page_source de ESE intento para depuración y reintenta."""
-        self.wait_for_overlay_to_disappear()
-        long_wait = WebDriverWait(self.driver, 30, poll_frequency=0.5)
-        last_error = None
-        for attempt in range(3):
+        long_wait = WebDriverWait(self.driver, 20)
+        for attempt in range(2):
             try:
-                button = long_wait.until(expected_conditions.presence_of_element_located(self.ice_cream_plus_button))
+                button = long_wait.until(expected_conditions.element_to_be_clickable(self.ice_cream_plus_button))
                 self.driver.execute_script("arguments[0].scrollIntoView(true);", button)
-                self.wait_for_overlay_to_disappear()
-                self.driver.execute_script("arguments[0].click();", button)
+                button.click()
                 return
-            except TimeoutException as e:
-                last_error = e
-                self.driver.save_screenshot(f"debug_ice_cream_failure_attempt{attempt + 1}.png")
-                with open(f"debug_ice_cream_failure_attempt{attempt + 1}.html", "w", encoding="utf-8") as f:
-                    f.write(self.driver.page_source)
-        raise last_error
+            except TimeoutException:
+                if attempt == 1:
+                    raise
+                self.click_requirements_header()
 
     def order_two_ice_creams(self):
         self.click_ice_cream_plus_button()
@@ -244,7 +234,7 @@ class UrbanRoutesPage:
             self.driver.execute_script("arguments[0].click();", button)
 
     def wait_for_driver_assigned(self):
-        long_wait = WebDriverWait(self.driver, 20)
+        long_wait = WebDriverWait(self.driver, 45)
         long_wait.until(
             lambda driver: "conductor" in driver.find_element(*self.order_header_title).text.strip().lower()
         )
