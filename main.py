@@ -1,6 +1,7 @@
+import time
 import data
 from selenium import webdriver
-from selenium.webdriver import Keys
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
@@ -40,8 +41,7 @@ class UrbanRoutesPage:
 
     order_taxi_button = (By.XPATH, "//button[@class='button round' and text()='Pedir un taxi']")
     comfort_tariff = (By.XPATH, "//div[@class='tcard-title' and text()='Comfort']")
-    comfort_tariff_active = (By.XPATH,
-                             "//div[contains(@class, 'tcard active')]//div[@class='tcard-title' and text()='Comfort']")
+    comfort_tariff_active = (By.CSS_SELECTOR, '.tcard.active .tcard-title')
     phone_button = (By.XPATH, "//div[@class='np-button']//div[text()='Número de teléfono']")
     phone_field = (By.ID, 'phone')
     code_field = (By.ID, 'code')
@@ -78,10 +78,14 @@ class UrbanRoutesPage:
         self.wait = WebDriverWait(self.driver, 10)
 
     def set_from(self, from_address):
-        self.wait.until(expected_conditions.presence_of_element_located(self.from_field)).send_keys(from_address)
+        field = self.wait.until(expected_conditions.visibility_of_element_located(self.from_field))
+        field.clear()
+        field.send_keys(from_address)
 
     def set_to(self, to_address):
-        self.wait.until(expected_conditions.presence_of_element_located(self.to_field)).send_keys(to_address)
+        field = self.wait.until(expected_conditions.visibility_of_element_located(self.to_field))
+        field.clear()
+        field.send_keys(to_address)
 
     def get_from(self):
         return self.wait.until(expected_conditions.presence_of_element_located(self.from_field)).get_property('value')
@@ -99,18 +103,26 @@ class UrbanRoutesPage:
     def select_comfort_tariff(self):
         self.wait.until(expected_conditions.element_to_be_clickable(self.comfort_tariff)).click()
 
+    def open_comfort_order(self):
+        self.set_route(data.address_from, data.address_to)
+        self.click_order_taxi_button()
+        self.select_comfort_tariff()
+
     def is_comfort_tariff_selected(self):
-        try:
-            self.wait.until(expected_conditions.visibility_of_element_located(self.comfort_tariff_active))
-            return True
-        except TimeoutException:
-            return False
+        tariff = self.wait.until(
+            expected_conditions.visibility_of_element_located(
+                self.comfort_tariff_active
+            )
+        )
+        return tariff.text == "Comfort"
 
     def click_phone_button(self):
         self.wait.until(expected_conditions.element_to_be_clickable(self.phone_button)).click()
 
     def set_phone_number(self, phone_number):
-        self.wait.until(expected_conditions.presence_of_element_located(self.phone_field)).send_keys(phone_number)
+        field = self.wait.until(expected_conditions.visibility_of_element_located(self.phone_field))
+        field.clear()
+        field.send_keys(phone_number)
 
     def click_next_button(self):
         self.wait.until(expected_conditions.element_to_be_clickable(self.next_button)).click()
@@ -119,7 +131,9 @@ class UrbanRoutesPage:
         self.wait.until(expected_conditions.element_to_be_clickable(self.confirm_code_button)).click()
 
     def set_phone_code(self, code):
-        self.wait.until(expected_conditions.presence_of_element_located(self.code_field)).send_keys(code)
+        field = self.wait.until(expected_conditions.visibility_of_element_located(self.code_field))
+        field.clear()
+        field.send_keys(code)
 
     def fill_phone_number(self, phone_number):
         self.click_phone_button()
@@ -166,16 +180,15 @@ class UrbanRoutesPage:
             return False
 
     def set_driver_message(self, message):
-        self.wait.until(expected_conditions.visibility_of_element_located(self.driver_message_field)).send_keys(message)
+        field = self.wait.until(expected_conditions.visibility_of_element_located(self.driver_message_field))
+        field.clear()
+        field.send_keys(message)
 
     def get_driver_message(self):
         return self.wait.until(expected_conditions.visibility_of_element_located(self.driver_message_field)).get_property('value')
 
     def wait_for_overlay_to_disappear(self):
-        try:
-            self.wait.until(expected_conditions.invisibility_of_element_located(self.overlay))
-        except TimeoutException:
-            pass
+        self.wait.until(expected_conditions.invisibility_of_element_located(self.overlay))
 
     def click_requirements_header(self):
         self.wait_for_overlay_to_disappear()
@@ -186,36 +199,53 @@ class UrbanRoutesPage:
         except ElementClickInterceptedException:
             self.driver.execute_script("arguments[0].click();", header)
 
-    def click_blanket_and_tissues_switch(self):
+    def get_requirement_control(self, locator):
         self.wait_for_overlay_to_disappear()
+
         try:
-            switch = self.wait.until(expected_conditions.element_to_be_clickable(self.blanket_and_tissues_switch))
+            return WebDriverWait(self.driver, 3).until(
+                expected_conditions.element_to_be_clickable(locator)
+            )
         except TimeoutException:
             self.click_requirements_header()
             self.wait_for_overlay_to_disappear()
-            switch = self.wait.until(expected_conditions.element_to_be_clickable(self.blanket_and_tissues_switch))
-        self.driver.execute_script("arguments[0].scrollIntoView(true);", switch)
-        try:
+
+            return self.wait.until(
+                expected_conditions.element_to_be_clickable(locator)
+            )
+
+    def click_blanket_and_tissues_switch(self):
+        switch = self.get_requirement_control(
+            self.blanket_and_tissues_switch
+        )
+
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});", switch
+        )
+        switch.click()
+
+        time.sleep(2)
+        if not self.is_blanket_and_tissues_selected():
+            switch = self.get_requirement_control(
+                self.blanket_and_tissues_switch
+            )
             switch.click()
-        except ElementClickInterceptedException:
-            self.driver.execute_script("arguments[0].click();", switch)
 
     def is_blanket_and_tissues_selected(self):
         checkbox = self.wait.until(expected_conditions.presence_of_element_located(self.blanket_and_tissues_checkbox))
         return checkbox.is_selected()
 
     def click_ice_cream_plus_button(self):
-        long_wait = WebDriverWait(self.driver, 20)
-        for attempt in range(2):
-            try:
-                button = long_wait.until(expected_conditions.element_to_be_clickable(self.ice_cream_plus_button))
-                self.driver.execute_script("arguments[0].scrollIntoView(true);", button)
-                button.click()
-                return
-            except TimeoutException:
-                if attempt == 1:
-                    raise
-                self.click_requirements_header()
+        button = self.get_requirement_control(self.ice_cream_plus_button)
+
+        self.driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});", button
+        )
+        try:
+            button.click()
+        except ElementClickInterceptedException:
+            self.wait_for_overlay_to_disappear()
+            self.driver.execute_script("arguments[0].click();", button)
 
     def order_two_ice_creams(self):
         self.click_ice_cream_plus_button()
@@ -295,9 +325,7 @@ class TestUrbanRoutes:
     def test_fill_phone_number(self):
         self.driver.get(data.urban_routes_url)
         routes_page = UrbanRoutesPage(self.driver)
-        routes_page.set_route(data.address_from, data.address_to)
-        routes_page.click_order_taxi_button()
-        routes_page.select_comfort_tariff()
+        routes_page.open_comfort_order()
         routes_page.fill_phone_number(data.phone_number)
         code = retrieve_phone_code(self.driver)
         routes_page.set_phone_code(code)
@@ -307,45 +335,35 @@ class TestUrbanRoutes:
     def test_add_credit_card(self):
         self.driver.get(data.urban_routes_url)
         routes_page = UrbanRoutesPage(self.driver)
-        routes_page.set_route(data.address_from, data.address_to)
-        routes_page.click_order_taxi_button()
-        routes_page.select_comfort_tariff()
+        routes_page.open_comfort_order()
         routes_page.add_credit_card(data.card_number, data.card_code)
         assert routes_page.is_card_added(), "La tarjeta no quedó agregada como método de pago"
 
     def test_set_driver_message(self):
         self.driver.get(data.urban_routes_url)
         routes_page = UrbanRoutesPage(self.driver)
-        routes_page.set_route(data.address_from, data.address_to)
-        routes_page.click_order_taxi_button()
-        routes_page.select_comfort_tariff()
+        routes_page.open_comfort_order()
         routes_page.set_driver_message(data.message_for_driver)
         assert routes_page.get_driver_message() == data.message_for_driver, "El mensaje para el conductor no coincide"
 
     def test_order_blanket_and_tissues(self):
         self.driver.get(data.urban_routes_url)
         routes_page = UrbanRoutesPage(self.driver)
-        routes_page.set_route(data.address_from, data.address_to)
-        routes_page.click_order_taxi_button()
-        routes_page.select_comfort_tariff()
+        routes_page.open_comfort_order()
         routes_page.click_blanket_and_tissues_switch()
         assert routes_page.is_blanket_and_tissues_selected(), "Manta y pañuelos no quedó seleccionado"
 
     def test_order_two_ice_creams(self):
         self.driver.get(data.urban_routes_url)
         routes_page = UrbanRoutesPage(self.driver)
-        routes_page.set_route(data.address_from, data.address_to)
-        routes_page.click_order_taxi_button()
-        routes_page.select_comfort_tariff()
+        routes_page.open_comfort_order()
         routes_page.order_two_ice_creams()
         assert routes_page.get_ice_cream_count() == '2', "La cantidad de helados no quedó en 2"
 
     def test_request_taxi_search(self):
         self.driver.get(data.urban_routes_url)
         routes_page = UrbanRoutesPage(self.driver)
-        routes_page.set_route(data.address_from, data.address_to)
-        routes_page.click_order_taxi_button()
-        routes_page.select_comfort_tariff()
+        routes_page.open_comfort_order()
         routes_page.fill_phone_number(data.phone_number)
         code = retrieve_phone_code(self.driver)
         routes_page.set_phone_code(code)
@@ -353,7 +371,6 @@ class TestUrbanRoutes:
         routes_page.add_credit_card(data.card_number, data.card_code)
         routes_page.set_driver_message(data.message_for_driver)
         routes_page.click_blanket_and_tissues_switch()
-        routes_page.order_two_ice_creams()
         routes_page.click_request_taxi_search_button()
         routes_page.wait_for_driver_assigned()
         assert "conductor" in routes_page.get_order_header_title().lower(), "No se encontró el mensaje de conductor asignado"
