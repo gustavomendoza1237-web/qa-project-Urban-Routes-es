@@ -1,48 +1,22 @@
-# QA Project — Urban Routes (Automatización con Selenium)
-
-Suite de pruebas automatizadas end-to-end para la aplicación **Urban Routes**, desarrollada como parte del Sprint 9 del bootcamp de QA Engineering de TripleTen.
-
-## 📋 Descripción
-
-Este proyecto automatiza el flujo completo de solicitud de un viaje en la aplicación Urban Routes, utilizando **Selenium WebDriver** con Python y el patrón **Page Object Model (POM)**. Las pruebas cubren desde la selección de ruta y tarifa hasta la asignación del conductor, pasando por el llenado del formulario de pago, la configuración de preferencias del viaje (manta, pañuelos, helado) y el envío del código SMS de confirmación.
-
-## 🛠️ Stack tecnológico
-
-- **Python 3**
-- **Selenium WebDriver** (4.10+)
-- **pytest** — framework de pruebas
-- **Chrome / ChromeDriver**
-- **Git / GitHub** — control de versiones
-
-## 📁 Estructura del proyecto
-
-```
-qa-project-Urban-Routes-es/
-├── main.py          # Clase UrbanRoutesPage (locators y métodos) + clase TestUrbanRoutes (pruebas)
-├── data.py          # Datos de prueba (URL del servidor, tarjeta, mensajes, etc.)
-├── requirements.txt
-├── .gitignore
-└── README.md
-```
 
 ## ⚙️ Configuración del entorno
 
 1. Clonar el repositorio:
-   ```bash
+```bash
    git clone git@github.com:gustavomendoza1237-web/qa-project-Urban-Routes-es.git
    cd qa-project-Urban-Routes-es
-   ```
+```
 
 2. Crear y activar entorno virtual (PowerShell):
-   ```powershell
+```powershell
    python -m venv venv
    .\venv\Scripts\Activate.ps1
-   ```
+```
 
 3. Instalar dependencias:
-   ```bash
+```bash
    pip install -r requirements.txt
-   ```
+```
 
 4. **Importante:** antes de cada ejecución, regenerar la URL del servidor en `data.py`. Las URLs de los servidores de prueba de TripleTen expiran; si el test falla en el primer paso (`click_order_taxi_button`), la causa casi siempre es una sesión de servidor expirada, no un error de código.
 
